@@ -1,0 +1,88 @@
+version: '3.1'
+
+services:
+#  localstack:
+#    container_name: localstack
+#    image: localstack/localstack:latest
+#    environment:
+#      - EDGE_PORT=4566
+#      - SERVICES=lambda,s3
+#    ports:
+#      - '4566-4583:4566-4583'
+#  mysql:
+#    restart: always
+#    container_name: db
+#    environment:
+#      MYSQL_ROOT_USER: root
+#      MYSQL_ROOT_PASSWORD: hello987
+#    build:
+#      context: .
+#      dockerfile: dockerfile
+#    ports:
+#      - "50000:3306"
+
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: wurstmeister/kafka
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: localhost
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CREATE_TOPICS: "sampleTopic:1:1"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+  connect:
+    image: confluentinc/cp-kafka-connect
+    ports:
+      - "8083:8083"
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 900m
+    network_mode: host
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: localhost:9092
+      CONNECT_GROUP_ID: s3-sink-test
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_CONFIG_STORAGE_TOPIC: __slack.sink.config.storage
+      CONNECT_STATUS_STORAGE_TOPIC: __slack.sink.status.storage
+      CONNECT_OFFSET_STORAGE_TOPIC: __slack.sink.offset.storage
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_REST_PORT: 8083
+      CONNECT_REST_ADVERTISED_HOST_NAME: docker
+      CONNECT_SCHEMAS_ENABLE: "false"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_ZOOKEEPER_CONNECT: zookeeper:2181
+
+#  maxwell:
+#    image: zendesk/maxwell:v1.37.3
+#    depends_on:
+#      - mysql
+#      - zookeeper
+#      - kafka
+#    network_mode: host
+#    command:
+#      - "bin/maxwell"
+#      - "--config"
+#      - "/config/maxwell.properties"
+#    restart: always
+#    volumes:
+#      - "./maxwell.properties:/config/maxwell.properties"
