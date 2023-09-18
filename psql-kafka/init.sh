@@ -1,11 +1,11 @@
 #!/bin/sh
-mysql -h localhost -u root -P 3306 -phello987 << EOF
+set -e
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+	  CREATE DATABASE dev;
 
-DROP DATABASE IF EXISTS dev;
-create database dev;
-use dev;
-
-
+\connect dev;
+    create schema V1;
+    set search_path TO V1;
 
 
 create table retail_transactions(
@@ -33,5 +33,6 @@ insert into retail_transactions values(12,'2019-03-15',6,'CHICAGO','IL',16,116.2
 insert into retail_transactions values(13,'2019-03-16',7,'CHICAGO','IL',17,126.25);
 insert into retail_transactions values(14,'2019-03-16',7,'CHICAGO','IL',17,126.25);
 
+ COMMIT;
 
-EOF
+EOSQL

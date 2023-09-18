@@ -45,3 +45,38 @@ check if its uploaded:
 awslocal s3 ls s3://test
  > 2022-12-25 22:18:44         10 test.txt
 ```
+
+```shell
+running debezium connector with schema registery
+
+curl -H 'Content-Type: application/json' localhost:8083/connectors --data '
+{
+  "name": "transactions-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "database.hostname": "db",
+    "plugin.name": "pgoutput",
+    "database.port": "5432",
+    "database.user": "postgres",
+    "database.password": "root123",
+    "database.dbname" : "dev",
+    "topic.prefix": "test",
+    "database.server.name": "test1",
+    "schema.include.list": "v1"
+  }
+}'
+
+```
+
+```shell
+check the topic information
+
+docker run --tty \
+--network psql-kafka_default \
+confluentinc/cp-kafkacat \
+kafkacat -b kafka:9092 -C \
+-s key=s -s value=avro \
+-r http://schema-registry:8081 \
+-t test1.v1.retail_transactions
+
+```
