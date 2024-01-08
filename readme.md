@@ -5,6 +5,7 @@
 - [localstack](https://localstack.cloud/)
 - [docker](https://www.docker.com/)
 - [awscli-local](https://github.com/localstack/awscli-local)
+- Spark3.4
 
 
 ## env setup

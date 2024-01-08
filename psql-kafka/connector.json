@@ -2,7 +2,7 @@
   "name": "transactions-connector",
   "config": {
     "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
-    "database.hostname": "db",
+    "database.hostname": "hudidb",
     "plugin.name": "pgoutput",
     "database.port": "5432",
     "database.user": "postgres",
