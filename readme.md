@@ -54,7 +54,7 @@ curl -H 'Content-Type: application/json' localhost:8083/connectors --data '
   "name": "transactions-connector",
   "config": {
     "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
-    "database.hostname": "db",
+    "database.hostname": "hudidb",
     "plugin.name": "pgoutput",
     "database.port": "5432",
     "database.user": "postgres",
