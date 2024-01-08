@@ -1,0 +1,59 @@
+spark-submit \
+--class org.apache.hudi.utilities.deltastreamer.HoodieDeltaStreamer \
+--packages org.apache.hudi:hudi-spark3.4-bundle_2.12:0.14.0 \
+--properties-file hudikafka/spark-config.properties \
+--master 'local[*]' \
+--executor-memory 1g \
+utilities-jar/hudi-utilities-slim-bundle_2.12-0.14.0.jar \
+--table-type COPY_ON_WRITE \
+--target-base-path file:///Users/rahul/PythonWorkSpace/datalake/hudidb/  \
+--target-table retail_transactions \
+--source-ordering-field tran_date \
+--source-class org.apache.hudi.utilities.sources.debezium.PostgresDebeziumSource \
+--payload-class org.apache.hudi.common.model.debezium.PostgresDebeziumAvroPayload \
+--op UPSERT \
+ --continuous \
+ --source-limit 4000000 \
+ --min-sync-interval-seconds 20 \
+--hoodie-conf bootstrap.servers=localhost:9092 \
+--hoodie-conf schema.registry.url=http://localhost:8081 \
+--hoodie-conf hoodie.deltastreamer.schemaprovider.registry.url=http://localhost:8081/subjects/test1.v1.retail_transactions-value/versions/latest \
+--hoodie-conf hoodie.deltastreamer.source.kafka.value.deserializer.class=io.confluent.kafka.serializers.KafkaAvroDeserializer \
+--hoodie-conf hoodie.deltastreamer.source.kafka.topic=test1.v1.retail_transactions \
+--hoodie-conf auto.offset.reset=earliest \
+--hoodie-conf hoodie.datasource.write.recordkey.field=tran_id \
+--hoodie-conf hoodie.datasource.write.partitionpath.field=store_city \
+--hoodie-conf hoodie.datasource.write.keygenerator.class=org.apache.hudi.keygen.SimpleKeyGenerator \
+--hoodie-conf hoodie.datasource.write.hive_style_partitioning=true \
+--hoodie-conf hoodie.datasource.write.precombine.field=tran_date
+
+
+
+spark-submit \
+--class org.apache.hudi.utilities.streamer.HoodieStreamer \
+--packages 'org.apache.hudi:hudi-spark3.4-bundle_2.12:0.14.0,org.apache.hadoop:hadoop-aws:3.3.2' \
+--repositories 'https://repo.maven.apache.org/maven2' \--properties-file hudikafka/spark-config.properties \
+--master 'local[*]' \
+--executor-memory 1g \
+utilities-jar/hudi-utilities-slim-bundle_2.12-0.14.0.jar \
+--table-type COPY_ON_WRITE \
+--target-base-path s3a://hudi-demo-bucket/hudidb/  \
+--target-table retail_transactions \
+--source-ordering-field tran_date \
+--source-class org.apache.hudi.utilities.sources.debezium.PostgresDebeziumSource \
+--payload-class org.apache.hudi.common.model.debezium.PostgresDebeziumAvroPayload \
+--op UPSERT \
+ --continuous \
+ --source-limit 4000000 \
+ --min-sync-interval-seconds 20 \
+--hoodie-conf bootstrap.servers=localhost:9092 \
+--hoodie-conf schema.registry.url=http://localhost:8081 \
+--hoodie-conf hoodie.deltastreamer.schemaprovider.registry.url=http://localhost:8081/subjects/test1.v1.retail_transactions-value/versions/latest \
+--hoodie-conf hoodie.deltastreamer.source.kafka.value.deserializer.class=io.confluent.kafka.serializers.KafkaAvroDeserializer \
+--hoodie-conf hoodie.deltastreamer.source.kafka.topic=test1.v1.retail_transactions \
+--hoodie-conf auto.offset.reset=earliest \
+--hoodie-conf hoodie.datasource.write.recordkey.field=tran_id \
+--hoodie-conf hoodie.datasource.write.partitionpath.field=store_city \
+--hoodie-conf hoodie.datasource.write.keygenerator.class=org.apache.hudi.keygen.SimpleKeyGenerator \
+--hoodie-conf hoodie.datasource.write.hive_style_partitioning=true \
+--hoodie-conf hoodie.datasource.write.precombine.field=tran_date

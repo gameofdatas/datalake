@@ -1,18 +1,18 @@
 version: '3.1'
 
 services:
-#  localstack:
-#    container_name: localstack
-#    image: localstack/localstack:latest
-#    environment:
-#      - EDGE_PORT=4566
-#      - SERVICES=lambda,s3
-#    ports:
-#      - '4566-4583:4566-4583'
+  localstack:
+    container_name: localstack
+    image: localstack/localstack:latest
+    environment:
+      - EDGE_PORT=4566
+      - SERVICES=lambda,s3
+    ports:
+      - '4566-4583:4566-4583'
 
   postgres:
     restart: always
-    container_name: db
+    container_name: hudidb
     environment:
       POSTGRES_PASSWORD: root123
     command:
