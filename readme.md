@@ -25,7 +25,7 @@ Before you begin, ensure you have the following prerequisites installed on your 
    ```bash
   Install awscli-local by running:
 
-   `pip3.7 install awscli-local (assuming you have pip installed)`
+   pip3.7 install awscli-local (assuming you have pip installed)
 
    create bukcet if we want hudi to write data in s3:
    
@@ -40,8 +40,8 @@ To get started with this project, follow these steps:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/your-data-lake.git
-   cd your-data-lake
+   git clone git@github.com:Rahul7794/datalake.git
+   cd datalake
 
 2. Build and run the Docker containers:
    ```bash
