@@ -6,6 +6,8 @@ Debezium, streams them to Apache Kafka with Schema Registry, and performs increm
 Finally, it stores the processed data in a local instance of AWS S3 powered by Localstack. The entire setup is
 containerized with Docker for easy deployment, and it requires Docker and Apache Spark 3.4 installed as prerequisites.
 
+![](screenshots/diagram.jpg)
+
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
