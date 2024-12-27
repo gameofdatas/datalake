@@ -179,7 +179,7 @@ To get started with this project, follow these steps:
    --executor-memory 1g \
    utilities-jar/hudi-utilities-slim-bundle_2.12-0.14.0.jar \
    --table-type COPY_ON_WRITE \
-   --target-base-path s3a://hudi-demo-bucket/hudidb/  \
+   --target-base-path s3a://warehouse/default/retail_transactions \
    --target-table retail_transactions \
    --source-ordering-field tran_date \
    --source-class org.apache.hudi.utilities.sources.debezium.PostgresDebeziumSource \
@@ -195,11 +195,23 @@ To get started with this project, follow these steps:
    --hoodie-conf hoodie.deltastreamer.source.kafka.topic=test1.v1.retail_transactions \
    --hoodie-conf auto.offset.reset=earliest \
    --hoodie-conf hoodie.datasource.write.recordkey.field=tran_id \
+   --hoodie-conf hoodie.database.name=default \
+   --hoodie-conf hoodie.table.name=retail_transactions \
+   --hoodie-conf hoodie.datasource.write.table.name=retail_transactions \
    --hoodie-conf hoodie.datasource.write.partitionpath.field=store_city \
-   --hoodie-conf hoodie.datasource.write.keygenerator.class=org.apache.hudi.keygen.SimpleKeyGenerator \
-   --hoodie-conf hoodie.datasource.write.hive_style_partitioning=true \
-   --hoodie-conf hoodie.datasource.write.precombine.field=tran_date
-   ```
+   --hoodie-conf hoodie.datasource.write.precombine.field=tran_date \
+   --hoodie-conf hoodie.enable.data.skipping=true \
+   --hoodie-conf hoodie.metadata.enable=true \
+   --hoodie-conf hoodie.metadata.index.column.stats.enable=true \
+   --hoodie-conf hoodie.datasource.hive_sync.enable=true \
+   --hoodie-conf hoodie.datasource.hive_sync.database=default \
+   --hoodie-conf hoodie.datasource.hive_sync.table=retail_transactions \
+   --hoodie-conf hoodie.datasource.hive_sync.username=hive \
+   --hoodie-conf hoodie.datasource.hive_sync.password=hive \
+   --hoodie-conf hoodie.datasource.hive_sync.mode=hms \
+   --hoodie-conf hoodie.datasource.hive_sync.metastore.uris=thrift://localhost:9083 \
+   --hoodie-conf hoodie.datasource.hive_sync.partition_extractor_class=org.apache.hudi.hive.MultiPartKeysValueExtractor
+```
 
 8. Monitor the data flow and storage under the path mentioned in `--target-base-path`
 
