@@ -3,7 +3,7 @@
 Welcome to the In-House Data Lake project! This comprehensive data lake solution empowers organizations to efficiently
 manage and process data in real-time. It seamlessly captures Change Data Capture (CDC) records from PostgreSQL using
 Debezium, streams them to Apache Kafka with Schema Registry, and performs incremental data processing with Apache Hudi.
-Finally, it stores the processed data in a local instance of AWS S3 powered by Localstack. The entire setup is
+Finally, it stores the processed data in MinIO S3 Bucket. The entire setup is
 containerized with Docker for easy deployment, and it requires Docker and Apache Spark 3.4 installed as prerequisites.
 
 ![](screenshots/diagram.jpg)
@@ -21,18 +21,6 @@ Before you begin, ensure you have the following prerequisites installed on your 
 
 - Docker
 - Apache Spark 3.4
-- [awscli-local](https://github.com/localstack/awscli-local)
-   ```bash
-  Install awscli-local by running:
-
-   pip3.7 install awscli-local (assuming you have pip installed)
-
-   create bukcet if we want hudi to write data in s3:
-   
-   awslocal s3 mb s3://hudi-demo-bucket/hudidb/
-   > make_bucket: hudi-demo-bucket
-   
-  ```
 
 ## Getting Started
 
@@ -179,7 +167,7 @@ To get started with this project, follow these steps:
    --executor-memory 1g \
    utilities-jar/hudi-utilities-slim-bundle_2.12-0.14.0.jar \
    --table-type COPY_ON_WRITE \
-   --target-base-path s3a://hudi-demo-bucket/hudidb/  \
+   --target-base-path s3a://warehouse/retail_transactions/  \
    --target-table retail_transactions \
    --source-ordering-field tran_date \
    --source-class org.apache.hudi.utilities.sources.debezium.PostgresDebeziumSource \
@@ -202,6 +190,8 @@ To get started with this project, follow these steps:
    ```
 
 8. Monitor the data flow and storage under the path mentioned in `--target-base-path`
+
+![](screenshots/miniorefactor.jpg)
 
 ## Project Structure
 
