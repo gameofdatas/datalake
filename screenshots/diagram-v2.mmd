@@ -1,0 +1,33 @@
+flowchart LR
+  subgraph Source[Source Database]
+    PG[(PostgreSQL\n`hudidb`)]
+  end
+
+  subgraph CDC[CDC Layer]
+    DBZ[Debezium Connect\n:8083]
+    KAFKA[(Kafka)]
+    SR[Schema Registry\n:8081]
+  end
+
+  subgraph Lake[Data Lake on MinIO]
+    SPARK[Hudi Streamer\nSpark 3.4]
+    MINIO[(MinIO S3\nwarehouse bucket)]
+    HMS[Hive Metastore\n:9083]
+  end
+
+  subgraph Query[Query Layer]
+    TRINO[Trino / Presto\n:8080]
+  end
+
+  USER[[User / SQL Client]]
+
+  PG -- WAL/CDC --> DBZ
+  DBZ --> KAFKA
+  DBZ --> SR
+  SPARK -->|read CDC| KAFKA
+  SPARK -->|schema| SR
+  SPARK -->|write Hudi table| MINIO
+  SPARK -->|sync table metadata| HMS
+  TRINO -->|read metadata| HMS
+  TRINO -->|read Hudi files| MINIO
+  USER -->|run SQL| TRINO

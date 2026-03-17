@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  spark-hudi-streamer:
+    image: apache/spark:3.4.1
+    container_name: spark-hudi-streamer
+    user: "0:0"
+    working_dir: /opt/datalake
+    volumes:
+      - ..:/opt/datalake
+      - spark-ivy-cache:/home/spark/.ivy2
+    environment:
+      - SPARK_LOCAL_IP=127.0.0.1
+      - SPARK_LOCAL_HOSTNAME=localhost
+    command: >
+      /opt/spark/bin/spark-submit
+      --class org.apache.hudi.utilities.streamer.HoodieStreamer
+      --packages org.apache.hudi:hudi-spark3.4-bundle_2.12:0.14.0,org.apache.hadoop:hadoop-aws:3.3.2
+      --repositories https://repo.maven.apache.org/maven2
+      --properties-file /opt/datalake/config/spark-config-s3-docker.properties
+      --master local[*]
+      --executor-memory 1g
+      /opt/datalake/utilities-jar/hudi-utilities-slim-bundle_2.12-0.14.0.jar
+      --table-type COPY_ON_WRITE
+      --target-base-path s3a://warehouse/retail_transactions/
+      --target-table retail_transactions
+      --source-ordering-field tran_date
+      --source-class org.apache.hudi.utilities.sources.debezium.PostgresDebeziumSource
+      --payload-class org.apache.hudi.common.model.debezium.PostgresDebeziumAvroPayload
+      --op UPSERT
+      --continuous
+      --min-sync-interval-seconds 20
+      --hoodie-conf bootstrap.servers=kafka:9092
+      --hoodie-conf schema.registry.url=http://schema-registry:8081
+      --hoodie-conf hoodie.deltastreamer.schemaprovider.registry.url=http://schema-registry:8081/subjects/test1.v1.retail_transactions-value/versions/latest
+      --hoodie-conf hoodie.streamer.source.kafka.value.deserializer.class=io.confluent.kafka.serializers.KafkaAvroDeserializer
+      --hoodie-conf hoodie.streamer.source.kafka.topic=test1.v1.retail_transactions
+      --hoodie-conf auto.offset.reset=earliest
+      --hoodie-conf hoodie.datasource.write.recordkey.field=tran_id
+      --hoodie-conf hoodie.datasource.write.partitionpath.field=store_city
+      --hoodie-conf hoodie.datasource.write.keygenerator.class=org.apache.hudi.keygen.SimpleKeyGenerator
+      --hoodie-conf hoodie.datasource.write.hive_style_partitioning=true
+      --hoodie-conf hoodie.datasource.write.precombine.field=tran_date
+      --hoodie-conf hoodie.datasource.hive_sync.enable=true
+      --hoodie-conf hoodie.datasource.hive_sync.mode=hms
+      --hoodie-conf hoodie.datasource.hive_sync.metastore.uris=thrift://hive-metastore:9083
+      --hoodie-conf hoodie.datasource.hive_sync.database=default
+      --hoodie-conf hoodie.datasource.hive_sync.table=retail_transactions
+      --hoodie-conf hoodie.datasource.hive_sync.partition_fields=store_city
+      --hoodie-conf hoodie.datasource.hive_sync.support_timestamp=true
+    networks:
+      - datalake
+
+networks:
+  datalake:
+    external: true
+    name: hudi-datalake_default
+
+volumes:
+  spark-ivy-cache:

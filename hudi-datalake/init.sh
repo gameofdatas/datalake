@@ -17,6 +17,8 @@ store_state char(2),
 quantity INT,
 total FLOAT);
 
+alter table retail_transactions replica identity full;
+
 
 insert into retail_transactions values(1,'2019-03-17',1,'CHICAGO','IL',5,106.25);
 insert into retail_transactions values(2,'2019-03-16',2,'NEW YORK','NY',6,116.25);

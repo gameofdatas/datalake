@@ -8,6 +8,8 @@ containerized with Docker for easy deployment, and it requires Docker and Apache
 
 ![](screenshots/diagram.jpg)
 
+> Editable source for this architecture diagram: `screenshots/diagram-v2.mmd`
+
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
@@ -193,6 +195,120 @@ To get started with this project, follow these steps:
 
 ![](screenshots/miniorefactor.jpg)
 
+## Trino (Presto) query layer on top of Hudi in MinIO
+
+To query Hudi data in MinIO with Trino, this repo now includes:
+
+- Hive Metastore service (`hive-metastore`) for table metadata
+- Trino coordinator (`trino`) with Hudi catalog
+- Metastore DB (`metastore-db`)
+
+### 1) Bring up enhanced stack
+
+```bash
+cd hudi-datalake
+docker-compose up -d
+```
+
+This starts Trino at `http://localhost:8080` and Hive Metastore at `thrift://localhost:9083`.
+
+### 1.1) Run Hudi streamer using Docker Compose
+
+If you want to run the Spark Hudi job in a container (instead of local Spark), use:
+
+```bash
+cd hudi-datalake
+docker-compose -f docker-compose.spark.yml run --rm spark-hudi-streamer
+```
+
+Notes:
+- This uses the same command from `commands.txt` (S3 target + Hive sync) with container-friendly endpoints (`kafka`, `schema-registry`, `minio`, `hive-metastore`).
+- Keep the main stack up first via `docker-compose up -d`.
+- Ensure `utilities-jar/hudi-utilities-slim-bundle_2.12-0.14.0.jar` exists before running.
+- Docker run uses `config/spark-config-s3-docker.properties` (endpoint `http://minio:9000`).
+
+### 1.2) Continuous mode (recommended for live CDC)
+
+The Spark container command already runs with `--continuous`, so keep it running in one terminal:
+
+```bash
+cd hudi-datalake
+docker-compose -f docker-compose.spark.yml run --rm spark-hudi-streamer
+```
+
+Cleanup applied for continuous mode:
+- Removed unnecessary `--source-limit` from containerized continuous job
+- Removed redundant inline `spark.hadoop.fs.s3a.*` overrides (already in `config/spark-config-s3-docker.properties`)
+- Switched deprecated keys to `hoodie.streamer.source.kafka.*`
+
+### 2) Enable Hudi Hive sync in streamer job
+
+When writing Hudi data to MinIO (`s3a://warehouse/retail_transactions/`), include the Hive sync properties:
+
+```bash
+--enable-hive-sync \
+--hoodie-conf hoodie.datasource.hive_sync.enable=true \
+--hoodie-conf hoodie.datasource.hive_sync.mode=hms \
+--hoodie-conf hoodie.datasource.hive_sync.metastore.uris=thrift://localhost:9083 \
+--hoodie-conf hoodie.datasource.hive_sync.database=default \
+--hoodie-conf hoodie.datasource.hive_sync.table=retail_transactions \
+--hoodie-conf hoodie.datasource.hive_sync.partition_fields=store_city \
+--hoodie-conf hoodie.datasource.hive_sync.support_timestamp=true
+```
+
+This registers/updates the Hudi table metadata in Hive Metastore so Trino can discover it.
+
+### 3) Query from Trino
+
+Example checks:
+
+```sql
+SHOW CATALOGS;
+SHOW SCHEMAS FROM hudi;
+SHOW TABLES FROM hudi.default;
+SELECT tran_id, tran_date, store_city, total
+FROM hudi.default.retail_transactions
+ORDER BY tran_id;
+```
+
+### 3.1) Generate INSERT/UPDATE/DELETE and watch changes in Presto/Trino
+
+Run these against Postgres while streamer is in continuous mode:
+
+```bash
+docker exec -it hudidb psql -U postgres -d dev -c "SET search_path TO v1; INSERT INTO retail_transactions VALUES (1001, CURRENT_DATE, 11, 'BOSTON', 'MA', 2, 44.50);"
+docker exec -it hudidb psql -U postgres -d dev -c "SET search_path TO v1; UPDATE retail_transactions SET quantity = quantity + 1, total = total + 10 WHERE tran_id = 2;"
+docker exec -it hudidb psql -U postgres -d dev -c "SET search_path TO v1; DELETE FROM retail_transactions WHERE tran_id = 3;"
+```
+
+If UPDATE/DELETE fails with replica identity error on an existing DB, run once:
+
+```bash
+docker exec -it hudidb psql -U postgres -d dev -c "ALTER TABLE v1.retail_transactions REPLICA IDENTITY FULL;"
+```
+
+(`init.sh` now sets this automatically for fresh environments.)
+
+Then query from Trino:
+
+```sql
+SELECT tran_id, store_city, quantity, total
+FROM hudi.default.retail_transactions
+ORDER BY tran_id;
+```
+
+You can also use the ready SQL file: `hudi-datalake/sql/retail_transactions_cdc.sql`.
+
+### 4) What changed in this enhancement
+
+- `hudi-datalake/docker-compose.yml`
+   - Added `metastore-db`, `hive-metastore`, `trino` services
+   - Parameterized MinIO/Postgres credentials through `.env`
+- `hudi-datalake/.env`
+   - Centralized local credentials for the stack
+- `hudi-datalake/trino/etc/*`
+   - Added Trino coordinator + Hudi catalog configuration for MinIO + HMS
+
 ## Project Structure
 
 ```bash
@@ -202,9 +318,23 @@ To get started with this project, follow these steps:
 │   └── spark-config.properties
 ├── hudi-datalake
 │   ├── connector.json
+│   ├── .env
 │   ├── docker-compose.yml
+│   ├── docker-compose.spark.yml
 │   ├── dockerfile
+│   ├── hive
+│   │   └── conf
+│   │       └── core-site.xml
 │   └── init.sh
+│   ├── sql
+│   │   └── retail_transactions_cdc.sql
+│   └── trino
+│       └── etc
+│           ├── catalog
+│           │   └── hudi.properties
+│           ├── config.properties
+│           ├── jvm.config
+│           └── node.properties
 ├── readme.md
 ├── screenshots
 │   └── dockerps.png

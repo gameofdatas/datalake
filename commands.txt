@@ -1,64 +1,63 @@
-## Spark submit command to dump data to local file system
+## Run streamer in continuous mode (Docker)
 
-spark-submit \
---class org.apache.hudi.utilities.deltastreamer.HoodieDeltaStreamer \
---packages org.apache.hudi:hudi-spark3.4-bundle_2.12:0.14.0 \
---properties-file config/spark-config.properties \
---master 'local[*]' \
---executor-memory 1g \
-utilities-jar/hudi-utilities-slim-bundle_2.12-0.14.0.jar \
---table-type COPY_ON_WRITE \
---target-base-path file:///Users/rahul/PythonWorkSpace/datalake/hudidb/  \
---target-table retail_transactions \
---source-ordering-field tran_date \
---source-class org.apache.hudi.utilities.sources.debezium.PostgresDebeziumSource \
---payload-class org.apache.hudi.common.model.debezium.PostgresDebeziumAvroPayload \
---op UPSERT \
- --continuous \
- --source-limit 4000000 \
- --min-sync-interval-seconds 20 \
---hoodie-conf bootstrap.servers=localhost:9092 \
---hoodie-conf schema.registry.url=http://localhost:8081 \
---hoodie-conf hoodie.deltastreamer.schemaprovider.registry.url=http://localhost:8081/subjects/test1.v1.retail_transactions-value/versions/latest \
---hoodie-conf hoodie.deltastreamer.source.kafka.value.deserializer.class=io.confluent.kafka.serializers.KafkaAvroDeserializer \
---hoodie-conf hoodie.deltastreamer.source.kafka.topic=test1.v1.retail_transactions \
---hoodie-conf auto.offset.reset=earliest \
---hoodie-conf hoodie.datasource.write.recordkey.field=tran_id \
---hoodie-conf hoodie.datasource.write.partitionpath.field=store_city \
---hoodie-conf hoodie.datasource.write.keygenerator.class=org.apache.hudi.keygen.SimpleKeyGenerator \
---hoodie-conf hoodie.datasource.write.hive_style_partitioning=true \
---hoodie-conf hoodie.datasource.write.precombine.field=tran_date
+cd hudi-datalake
+docker-compose -f docker-compose.spark.yml run --rm spark-hudi-streamer
 
 
-## Spark submit command to dump data to s3
+## Run streamer one-off (no --continuous)
 
-
-spark-submit \
+docker run --rm -u 0:0 --network hudi-datalake_default \
+-e SPARK_LOCAL_IP=127.0.0.1 -e SPARK_LOCAL_HOSTNAME=localhost \
+-v $PWD:/opt/datalake -w /opt/datalake apache/spark:3.4.1 \
+/opt/spark/bin/spark-submit \
 --class org.apache.hudi.utilities.streamer.HoodieStreamer \
---packages 'org.apache.hudi:hudi-spark3.4-bundle_2.12:0.14.0,org.apache.hadoop:hadoop-aws:3.3.2' \
---repositories 'https://repo.maven.apache.org/maven2' \
---properties-file config/spark-config-s3.properties \
---master 'local[*]' \
+--packages org.apache.hudi:hudi-spark3.4-bundle_2.12:0.14.0,org.apache.hadoop:hadoop-aws:3.3.2 \
+--repositories https://repo.maven.apache.org/maven2 \
+--properties-file /opt/datalake/config/spark-config-s3-docker.properties \
+--master local[*] \
 --executor-memory 1g \
-utilities-jar/hudi-utilities-slim-bundle_2.12-0.14.0.jar \
+/opt/datalake/utilities-jar/hudi-utilities-slim-bundle_2.12-0.14.0.jar \
 --table-type COPY_ON_WRITE \
---target-base-path s3a://hudi-demo-bucket/hudidb/  \
+--target-base-path s3a://warehouse/retail_transactions/ \
 --target-table retail_transactions \
 --source-ordering-field tran_date \
 --source-class org.apache.hudi.utilities.sources.debezium.PostgresDebeziumSource \
 --payload-class org.apache.hudi.common.model.debezium.PostgresDebeziumAvroPayload \
 --op UPSERT \
- --continuous \
- --source-limit 4000000 \
- --min-sync-interval-seconds 20 \
---hoodie-conf bootstrap.servers=localhost:9092 \
---hoodie-conf schema.registry.url=http://localhost:8081 \
---hoodie-conf hoodie.deltastreamer.schemaprovider.registry.url=http://localhost:8081/subjects/test1.v1.retail_transactions-value/versions/latest \
---hoodie-conf hoodie.deltastreamer.source.kafka.value.deserializer.class=io.confluent.kafka.serializers.KafkaAvroDeserializer \
---hoodie-conf hoodie.deltastreamer.source.kafka.topic=test1.v1.retail_transactions \
+--source-limit 100000 \
+--enable-hive-sync \
+--hoodie-conf bootstrap.servers=kafka:9092 \
+--hoodie-conf schema.registry.url=http://schema-registry:8081 \
+--hoodie-conf hoodie.deltastreamer.schemaprovider.registry.url=http://schema-registry:8081/subjects/test1.v1.retail_transactions-value/versions/latest \
+--hoodie-conf hoodie.streamer.source.kafka.value.deserializer.class=io.confluent.kafka.serializers.KafkaAvroDeserializer \
+--hoodie-conf hoodie.streamer.source.kafka.topic=test1.v1.retail_transactions \
 --hoodie-conf auto.offset.reset=earliest \
 --hoodie-conf hoodie.datasource.write.recordkey.field=tran_id \
 --hoodie-conf hoodie.datasource.write.partitionpath.field=store_city \
 --hoodie-conf hoodie.datasource.write.keygenerator.class=org.apache.hudi.keygen.SimpleKeyGenerator \
 --hoodie-conf hoodie.datasource.write.hive_style_partitioning=true \
---hoodie-conf hoodie.datasource.write.precombine.field=tran_date
+--hoodie-conf hoodie.datasource.write.precombine.field=tran_date \
+--hoodie-conf hoodie.datasource.hive_sync.enable=true \
+--hoodie-conf hoodie.datasource.hive_sync.mode=hms \
+--hoodie-conf hoodie.datasource.hive_sync.metastore.uris=thrift://hive-metastore:9083 \
+--hoodie-conf hoodie.datasource.hive_sync.database=default \
+--hoodie-conf hoodie.datasource.hive_sync.table=retail_transactions \
+--hoodie-conf hoodie.datasource.hive_sync.partition_fields=store_city \
+--hoodie-conf hoodie.datasource.hive_sync.support_timestamp=true
+
+
+## CDC test SQL (INSERT / UPDATE / DELETE)
+
+# One-time (required for UPDATE/DELETE CDC on existing DBs)
+docker exec -it hudidb psql -U postgres -d dev -c "ALTER TABLE v1.retail_transactions REPLICA IDENTITY FULL;"
+
+docker exec -it hudidb psql -U postgres -d dev -c "SET search_path TO v1; INSERT INTO retail_transactions VALUES (1001, CURRENT_DATE, 11, 'BOSTON', 'MA', 2, 44.50);"
+
+docker exec -it hudidb psql -U postgres -d dev -c "SET search_path TO v1; UPDATE retail_transactions SET quantity = quantity + 1, total = total + 10 WHERE tran_id = 2;"
+
+docker exec -it hudidb psql -U postgres -d dev -c "SET search_path TO v1; DELETE FROM retail_transactions WHERE tran_id = 3;"
+
+
+## Query in Trino (Presto)
+
+docker exec -it trino trino --execute "SELECT tran_id, store_city, quantity, total FROM hudi.default.retail_transactions ORDER BY tran_id;"
