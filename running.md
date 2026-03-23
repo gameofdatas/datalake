@@ -2,6 +2,35 @@
 
 This is the quickest end-to-end way to run CDC (Postgres -> Kafka/Debezium -> Hudi on MinIO -> Trino).
 
+## Quick start with Make
+
+From project root:
+
+```bash
+make start
+```
+
+`make start` now runs a startup script (`scripts/start-sequence.sh`) that boots services in sequence and waits for readiness checks before moving ahead.
+
+If you want raw compose startup without sequencing checks:
+
+```bash
+make start-quick
+make connector
+```
+
+To stop:
+
+```bash
+make stop
+```
+
+Full reset (remove volumes):
+
+```bash
+make reset
+```
+
 ## Architecture diagram (editable)
 
 Use editable source: `screenshots/diagram-v2.mmd`

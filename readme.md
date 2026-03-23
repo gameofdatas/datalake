@@ -1,14 +1,52 @@
-# In-House Data Lake with CDC Processing and Apache Hudi
+# In-House Data Lake with CDC Processing, Apache Hudi, and Trino
 
 Welcome to the In-House Data Lake project! This comprehensive data lake solution empowers organizations to efficiently
 manage and process data in real-time. It seamlessly captures Change Data Capture (CDC) records from PostgreSQL using
 Debezium, streams them to Apache Kafka with Schema Registry, and performs incremental data processing with Apache Hudi.
-Finally, it stores the processed data in MinIO S3 Bucket. The entire setup is
-containerized with Docker for easy deployment, and it requires Docker and Apache Spark 3.4 installed as prerequisites.
+Processed data is stored in MinIO S3, with table metadata managed by Hive Metastore and exposed for interactive SQL
+queries via Trino (Presto). The entire setup is containerized with Docker for easy deployment, and it requires Docker
+and Apache Spark 3.4 installed as prerequisites.
 
 ![](screenshots/diagram.jpg)
 
 > Editable source for this architecture diagram: `screenshots/diagram-v2.mmd`
+
+```mermaid
+flowchart LR
+  subgraph Source[Source Database]
+    PG[(PostgreSQL\n`hudidb`)]
+  end
+
+  subgraph CDC[CDC Layer]
+    DBZ[Debezium Connect\n:8083]
+    KAFKA[(Kafka)]
+    SR[Schema Registry\n:8081]
+  end
+
+  subgraph Lake[Data Lake on MinIO]
+    SPARK[Hudi Streamer\nSpark 3.4]
+    MINIO[(MinIO S3\nwarehouse bucket)]
+    HMS[Hive Metastore\n:9083]
+  end
+
+  subgraph Query[Query Layer]
+    TRINO[Trino / Presto\n:8080]
+  end
+
+  USER[[User / SQL Client]]
+
+  PG -- WAL/CDC --> DBZ
+  DBZ --> KAFKA
+  DBZ --> SR
+  SPARK -->|read CDC| KAFKA
+  SPARK -->|schema| SR
+  SPARK -->|write Hudi table| MINIO
+  SPARK -->|sync table metadata| HMS
+  TRINO -->|read metadata| HMS
+  TRINO -->|read Hudi files| MINIO
+  USER -->|run SQL| TRINO
+
+```
 
 ## Table of Contents
 
